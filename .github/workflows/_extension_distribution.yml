@@ -20,6 +20,8 @@ on:
         required: false
       VCPKG_CACHING_AWS_DEFAULT_REGION:
         required: false
+      DUCKDB_REPOSITORY_TOKEN:
+        required: false
     inputs:
       # The name with which the extension will be built
       extension_name:
@@ -301,6 +303,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -536,6 +539,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - name: Install Ninja
         run: |
@@ -788,6 +792,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - uses: actions/setup-python@v5
         with:
@@ -1028,6 +1033,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
