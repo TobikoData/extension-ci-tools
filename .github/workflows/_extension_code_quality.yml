@@ -83,6 +83,23 @@ jobs:
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
+      - name: Fetch tags in DuckDB submodule
+        if: ${{inputs.override_repository == ''}}
+        shell: bash
+        run: |
+          cd duckdb
+          git fetch --unshallow 2>/dev/null || true
+          git fetch origin --tags --force
+          GIT_DESC=$(git describe --tags --always --long)
+          echo "DuckDB version: $GIT_DESC"
+          if [[ "$GIT_DESC" =~ ^[a-f0-9]+$ ]]; then
+            echo "ERROR: git describe returned only commit hash, tags not fetched properly!"
+            git remote -v
+            git tag -l | head -10
+            exit 1
+          fi
+          cd ..
+
       - name: Install
         shell: bash
         run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build clang-format-11 && sudo pip3 install cmake-format 'black==24.*' cxxheaderparser pcpp 'clang_format==11.0.1'
@@ -135,6 +152,23 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
+
+      - name: Fetch tags in DuckDB submodule
+        if: ${{inputs.override_repository == ''}}
+        shell: bash
+        run: |
+          cd duckdb
+          git fetch --unshallow 2>/dev/null || true
+          git fetch origin --tags --force
+          GIT_DESC=$(git describe --tags --always --long)
+          echo "DuckDB version: $GIT_DESC"
+          if [[ "$GIT_DESC" =~ ^[a-f0-9]+$ ]]; then
+            echo "ERROR: git describe returned only commit hash, tags not fetched properly!"
+            git remote -v
+            git tag -l | head -10
+            exit 1
+          fi
+          cd ..
 
       - name: Install
         shell: bash
