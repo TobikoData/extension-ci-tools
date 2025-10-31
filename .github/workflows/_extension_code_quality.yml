@@ -34,6 +34,8 @@ on:
     secrets:
       GH_TOKEN:
         required: false
+      DUCKDB_REPOSITORY_TOKEN:
+        required: false
   repository_dispatch:
   merge_group:
   pull_request:
@@ -72,6 +74,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -124,6 +127,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
