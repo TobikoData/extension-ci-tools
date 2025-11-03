@@ -491,6 +491,18 @@ jobs:
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
 
+      - name: Create build metadata
+        shell: bash
+        run: |
+          # Run inside Docker to have write permissions to build directory
+          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir duckdb/${{ matrix.duckdb_arch }} \
+            make create_build_metadata \
+            EXTENSION_NAME="${{ inputs.extension_name }}" \
+            BUILD_TYPE="${{ inputs.build_type }}" \
+            DUCKDB_PLATFORM="${{ matrix.duckdb_arch }}" \
+            CI_TOOLS_VERSION="${{ inputs.ci_tools_version }}" \
+            WORKFLOW_RUN_ID="${{ github.run_id }}"
+
       - uses: actions/upload-artifact@v4
         if: ${{ !inputs.upload_all_extensions }}
         with:
@@ -515,6 +527,14 @@ jobs:
           name: duckdb-${{ inputs.duckdb_version }}-binary-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/duckdb
+
+      - uses: actions/upload-artifact@v4
+        name: Upload build metadata (Linux)
+        with:
+          if-no-files-found: error
+          name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/metadata.json
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -756,6 +776,16 @@ jobs:
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
 
+      - name: Create build metadata
+        shell: bash
+        run: |
+          make create_build_metadata \
+            EXTENSION_NAME="${{ inputs.extension_name }}" \
+            BUILD_TYPE="${{ inputs.build_type }}" \
+            DUCKDB_PLATFORM="${{ matrix.duckdb_arch }}" \
+            CI_TOOLS_VERSION="${{ inputs.ci_tools_version }}" \
+            WORKFLOW_RUN_ID="${{ github.run_id }}"
+
       - uses: actions/upload-artifact@v4
         if: ${{ !inputs.upload_all_extensions }}
         with:
@@ -780,6 +810,14 @@ jobs:
           name: duckdb-${{ inputs.duckdb_version }}-binary-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/duckdb
+
+      - uses: actions/upload-artifact@v4
+        name: Upload build metadata (macOS)
+        with:
+          if-no-files-found: error
+          name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/metadata.json
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -1046,6 +1084,16 @@ jobs:
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
 
+      - name: Create build metadata
+        shell: bash
+        run: |
+          make create_build_metadata \
+            EXTENSION_NAME="${{ inputs.extension_name }}" \
+            BUILD_TYPE="${{ inputs.build_type }}" \
+            DUCKDB_PLATFORM="${{ matrix.duckdb_arch }}" \
+            CI_TOOLS_VERSION="${{ inputs.ci_tools_version }}" \
+            WORKFLOW_RUN_ID="${{ github.run_id }}"
+
       - uses: actions/upload-artifact@v4
         if: ${{ !inputs.upload_all_extensions }}
         with:
@@ -1070,6 +1118,14 @@ jobs:
           name: duckdb-${{ inputs.duckdb_version }}-binary-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/duckdb.exe
+
+      - uses: actions/upload-artifact@v4
+        name: Upload build metadata (Windows)
+        with:
+          if-no-files-found: error
+          name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/metadata.json
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -1267,6 +1323,17 @@ jobs:
         run: |
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} make ${{ matrix.duckdb_arch }}
 
+      - name: Create build metadata
+        shell: bash
+        run: |
+          # For WASM, build_type is the platform name (wasm_mvp, wasm_eh, wasm_threads)
+          make create_build_metadata \
+            EXTENSION_NAME="${{ inputs.extension_name }}" \
+            BUILD_TYPE="${{ matrix.duckdb_arch }}" \
+            DUCKDB_PLATFORM="${{ matrix.duckdb_arch }}" \
+            CI_TOOLS_VERSION="${{ inputs.ci_tools_version }}" \
+            WORKFLOW_RUN_ID="${{ github.run_id }}"
+
       - uses: actions/upload-artifact@v4
         if: ${{ !inputs.upload_all_extensions }}
         with:
@@ -1282,6 +1349,14 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ matrix.duckdb_arch }}/repository/**/*.duckdb_extension.wasm
+
+      - uses: actions/upload-artifact@v4
+        name: Upload build metadata (WASM)
+        with:
+          if-no-files-found: error
+          name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ matrix.duckdb_arch }}/metadata.json
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
