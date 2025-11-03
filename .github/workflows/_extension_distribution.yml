@@ -496,6 +496,15 @@ jobs:
           path: |
             build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
 
+      - uses: actions/upload-artifact@v4
+        name: Upload DuckDB binary (Linux)
+        if: ${{ inputs.build_duckdb_shell }}
+        with:
+          if-no-files-found: error
+          name: duckdb-${{ inputs.duckdb_version }}-binary-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/duckdb
+
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
         run: |
@@ -744,6 +753,15 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
+
+      - uses: actions/upload-artifact@v4
+        name: Upload DuckDB binary (macOS)
+        if: ${{ inputs.build_duckdb_shell }}
+        with:
+          if-no-files-found: error
+          name: duckdb-${{ inputs.duckdb_version }}-binary-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/duckdb
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -1019,6 +1037,15 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
+
+      - uses: actions/upload-artifact@v4
+        name: Upload DuckDB binary (Windows)
+        if: ${{ inputs.build_duckdb_shell }}
+        with:
+          if-no-files-found: error
+          name: duckdb-${{ inputs.duckdb_version }}-binary-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/duckdb.exe
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
