@@ -12,7 +12,7 @@
 #	DEFAULT_TEST_EXTENSION_DEPS : `;`-separated list of extensions that are built in `default` and `full` mode
 #	FULL_TEST_EXTENSION_DEPS    : `;`-separated list of extensions that are built in `full` mode
 
-.PHONY: all clean clean-python format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix
+.PHONY: all clean clean-python format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag output_distribution_matrix create_build_metadata
 
 all: release
 
@@ -299,4 +299,12 @@ output_distribution_matrix:
 
 configure_ci:
 	@echo "configure_ci step is skipped for this extension build..."
+
+create_build_metadata:
+	python3 extension-ci-tools/scripts/create_build_metadata.py \
+		--extension-name "$(EXTENSION_NAME)" \
+		--build-type "$(BUILD_TYPE)" \
+		--platform "$(DUCKDB_PLATFORM)" \
+		--ci-tools-version "$(CI_TOOLS_VERSION)" \
+		--workflow-run-id "$(WORKFLOW_RUN_ID)"
 
