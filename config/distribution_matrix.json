@@ -10,7 +10,7 @@
       },
       {
         "duckdb_arch": "linux_arm64",
-        "runner": "ubuntu-24.04-arm",
+        "runner": "ubicloud-standard-2-arm",
         "vcpkg_target_triplet": "arm64-linux-release",
         "vcpkg_host_triplet": "arm64-linux-release",
         "run_in_reduced_ci_mode": false
@@ -81,3 +81,4 @@
     ]
   }
 }
+
