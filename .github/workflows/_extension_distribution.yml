@@ -129,6 +129,11 @@ on:
         required: false
         type: string
         default: ""
+      # Override git describe for version detection (e.g., v1.4.1 to claim compatibility)
+      override_git_describe:
+        required: false
+        type: string
+        default: ""
       # If set tot true, skip tests
       skip_tests:
         required: false
@@ -399,6 +404,7 @@ jobs:
           LINUX_CI_IN_DOCKER=1
           CCACHE_MAXSIZE=1G
           CCACHE_NOCOMPRESS=1
+          OVERRIDE_GIT_DESCRIBE=${{ inputs.override_git_describe }}
           EOF
           echo '${{ inputs.test_config }}'| jq -r '.test_env_variables // {} | to_entries | map("\(.key)=\(.value)")|.[]' >> docker_env.txt
 
@@ -732,6 +738,7 @@ jobs:
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           make configure_ci
 
@@ -748,6 +755,8 @@ jobs:
 
       - name: Build extension
         shell: bash
+        env:
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} make ${{ inputs.build_type }}
 
@@ -1018,6 +1027,7 @@ jobs:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
           DUCKDB_PLATFORM_RTOOLS: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 1 || 0 }}
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           make configure_ci
 
@@ -1041,6 +1051,7 @@ jobs:
           EXTENSION_CANONICAL: ${{ inputs.extension_canonical }}
           DUCKDB_PLATFORM_RTOOLS: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 1 || 0 }}
           EXT_FLAGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         shell: cmd
         run: |
           if "%DUCKDB_PLATFORM_RTOOLS%" == "0" (
@@ -1280,6 +1291,7 @@ jobs:
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           make configure_ci
 
@@ -1296,6 +1308,8 @@ jobs:
           fi
 
       - name: Build Wasm module
+        env:
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} make ${{ matrix.duckdb_arch }}
 
