@@ -1062,7 +1062,6 @@ jobs:
         shell: powershell
         run: |
           cmd /c mklink /J C:\p "$env:GITHUB_WORKSPACE"
-          echo "VCPKG_TOOLCHAIN_PATH=C:/p/vcpkg/scripts/buildsystems/vcpkg.cmake" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Run configure
         shell: bash
@@ -1095,6 +1094,9 @@ jobs:
           DUCKDB_PLATFORM_RTOOLS: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 1 || 0 }}
           EXT_FLAGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
+          VCPKG_TOOLCHAIN_PATH: C:/p/vcpkg/scripts/buildsystems/vcpkg.cmake
+          VCPKG_OVERLAY_TRIPLETS: C:/p/extension-ci-tools/toolchains
+          VCPKG_OVERLAY_PORTS: C:/p/extension-ci-tools/vcpkg_ports
         shell: cmd
         working-directory: C:\p
         run: |
