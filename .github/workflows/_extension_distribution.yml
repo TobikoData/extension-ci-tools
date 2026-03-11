@@ -894,6 +894,13 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
+      - name: Enable Windows long paths
+        shell: powershell
+        run: |
+          New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+          git config --global core.longpaths true
+
       - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
