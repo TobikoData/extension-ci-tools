@@ -1046,6 +1046,12 @@ jobs:
           echo -e "\n# Injected Extension Config\n$EXTENSION_CONFIG" >> ./extension_config.cmake
           cat ./extension_config.cmake
 
+      - name: Set short vcpkg buildtrees path (Windows long path workaround)
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "C:\vt"
+          echo "VCPKG_BUILDTREES_ROOT=C:\vt" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Run configure
         shell: bash
         env:
