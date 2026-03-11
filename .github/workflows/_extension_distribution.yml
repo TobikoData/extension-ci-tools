@@ -330,6 +330,10 @@ jobs:
         if: ${{inputs.override_duckdb_repository == ''}}
         shell: bash
         run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
           cd duckdb
           git fetch --unshallow 2>/dev/null || true
           git fetch origin --tags --force
@@ -631,6 +635,10 @@ jobs:
         if: ${{inputs.override_duckdb_repository == ''}}
         shell: bash
         run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
           cd duckdb
           git fetch --unshallow 2>/dev/null || true
           git fetch origin --tags --force
@@ -984,6 +992,10 @@ jobs:
         if: ${{inputs.override_duckdb_repository == ''}}
         shell: bash
         run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
           cd duckdb
           git fetch --unshallow 2>/dev/null || true
           git fetch origin --tags --force
@@ -1050,7 +1062,7 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path "C:\vt"
-          echo "VCPKG_BUILDTREES_ROOT=C:\vt" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "VCPKG_INSTALL_OPTIONS=--x-buildtrees-root=C:/vt" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Run configure
         shell: bash
@@ -1228,6 +1240,10 @@ jobs:
         if: ${{inputs.override_duckdb_repository == ''}}
         shell: bash
         run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
           cd duckdb
           git fetch --unshallow 2>/dev/null || true
           git fetch origin --tags --force
