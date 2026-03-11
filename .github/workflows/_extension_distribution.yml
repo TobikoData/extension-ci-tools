@@ -1061,7 +1061,11 @@ jobs:
       - name: Create short workspace junction (Windows long path workaround)
         shell: powershell
         run: |
-          cmd /c mklink /J C:\p "$env:GITHUB_WORKSPACE"
+          $target = $env:GITHUB_WORKSPACE
+          Write-Host "Creating junction C:\p -> $target"
+          New-Item -ItemType Junction -Path "C:\p" -Target $target
+          Write-Host "Junction exists: $(Test-Path 'C:\p')"
+          Write-Host "Makefile reachable: $(Test-Path 'C:\p\Makefile')"
 
       - name: Run configure
         shell: bash
@@ -1098,8 +1102,9 @@ jobs:
           VCPKG_OVERLAY_TRIPLETS: C:/p/extension-ci-tools/toolchains
           VCPKG_OVERLAY_PORTS: C:/p/extension-ci-tools/vcpkg_ports
         shell: cmd
-        working-directory: C:\p
         run: |
+          cd /d C:\p
+          echo Working directory: %CD%
           if "%DUCKDB_PLATFORM_RTOOLS%" == "0" (
             if "%DUCKDB_PLATFORM%" == "windows_amd64" (
               call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
