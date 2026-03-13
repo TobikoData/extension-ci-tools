@@ -20,6 +20,8 @@ on:
         required: false
       VCPKG_CACHING_AWS_DEFAULT_REGION:
         required: false
+      DUCKDB_REPOSITORY_TOKEN:
+        required: false
     inputs:
       # The name with which the extension will be built
       extension_name:
@@ -129,6 +131,11 @@ on:
         default: ""
       # Optional tag the referenced duckdb should have -- this is a easy to misuse, and subject to change, for internal use only
       duckdb_tag:
+        required: false
+        type: string
+        default: ""
+      # Override git describe for version detection (e.g., v1.4.1 to claim compatibility)
+      override_git_describe:
         required: false
         type: string
         default: ""
@@ -310,6 +317,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -317,6 +325,27 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
+
+      - name: Fetch tags in DuckDB submodule
+        if: ${{inputs.override_duckdb_repository == ''}}
+        shell: bash
+        run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
+          cd duckdb
+          git fetch --unshallow 2>/dev/null || true
+          git fetch origin --tags --force
+          GIT_DESC=$(git describe --tags --always --long)
+          echo "DuckDB version: $GIT_DESC"
+          if [[ "$GIT_DESC" =~ ^[a-f0-9]+$ ]]; then
+            echo "ERROR: git describe returned only commit hash, tags not fetched properly!"
+            git remote -v
+            git tag -l | head -10
+            exit 1
+          fi
+          cd ..
 
       - name: Fetch override repository
         if: ${{inputs.override_duckdb_repository != ''}}
@@ -391,6 +420,7 @@ jobs:
           CCACHE_MAXSIZE=1G
           CCACHE_NOCOMPRESS=1
           SUBSET_EXTENSIONS_TESTS=${{ inputs.extensions_test_selection }}
+          OVERRIDE_GIT_DESCRIBE=${{ inputs.override_git_describe }}
           EOF
           echo '${{ inputs.test_config }}'| jq -r '.test_env_variables // {} | to_entries | map("\(.key)=\(.value)")|.[]' >> docker_env.txt
 
@@ -473,6 +503,18 @@ jobs:
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
 
+      - name: Create build metadata
+        shell: bash
+        run: |
+          # Run inside Docker to have write permissions to build directory
+          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir duckdb/${{ matrix.duckdb_arch }} \
+            make create_build_metadata \
+            EXTENSION_NAME="${{ inputs.extension_name }}" \
+            BUILD_TYPE="${{ inputs.build_type }}" \
+            DUCKDB_PLATFORM="${{ matrix.duckdb_arch }}" \
+            CI_TOOLS_VERSION="${{ inputs.ci_tools_version }}" \
+            WORKFLOW_RUN_ID="${{ github.run_id }}"
+
       - uses: actions/upload-artifact@v4
         if: ${{ !inputs.upload_all_extensions }}
         with:
@@ -488,6 +530,23 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
+
+      - uses: actions/upload-artifact@v4
+        name: Upload DuckDB binary (Linux)
+        if: ${{ inputs.build_duckdb_shell }}
+        with:
+          if-no-files-found: error
+          name: duckdb-${{ inputs.duckdb_version }}-binary-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/duckdb
+
+      - uses: actions/upload-artifact@v4
+        name: Upload build metadata (Linux)
+        with:
+          if-no-files-found: error
+          name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/metadata.json
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -549,6 +608,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - name: Install Ninja
         run: |
@@ -572,6 +632,27 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
+
+      - name: Fetch tags in DuckDB submodule
+        if: ${{inputs.override_duckdb_repository == ''}}
+        shell: bash
+        run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
+          cd duckdb
+          git fetch --unshallow 2>/dev/null || true
+          git fetch origin --tags --force
+          GIT_DESC=$(git describe --tags --always --long)
+          echo "DuckDB version: $GIT_DESC"
+          if [[ "$GIT_DESC" =~ ^[a-f0-9]+$ ]]; then
+            echo "ERROR: git describe returned only commit hash, tags not fetched properly!"
+            git remote -v
+            git tag -l | head -10
+            exit 1
+          fi
+          cd ..
 
       - name: Fetch override repository
         if: ${{inputs.override_duckdb_repository != ''}}
@@ -693,6 +774,7 @@ jobs:
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           make configure_ci
 
@@ -709,6 +791,8 @@ jobs:
 
       - name: Build extension
         shell: bash
+        env:
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} ENABLE_EXTENSION_AUTOINSTALL=1 ENABLE_EXTENSION_AUTOLOADING=1 make ${{ inputs.build_type }}
 
@@ -720,6 +804,16 @@ jobs:
         run: |
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
+
+      - name: Create build metadata
+        shell: bash
+        run: |
+          make create_build_metadata \
+            EXTENSION_NAME="${{ inputs.extension_name }}" \
+            BUILD_TYPE="${{ inputs.build_type }}" \
+            DUCKDB_PLATFORM="${{ matrix.duckdb_arch }}" \
+            CI_TOOLS_VERSION="${{ inputs.ci_tools_version }}" \
+            WORKFLOW_RUN_ID="${{ github.run_id }}"
 
       - uses: actions/upload-artifact@v4
         if: ${{ !inputs.upload_all_extensions }}
@@ -736,6 +830,23 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
+
+      - uses: actions/upload-artifact@v4
+        name: Upload DuckDB binary (macOS)
+        if: ${{ inputs.build_duckdb_shell }}
+        with:
+          if-no-files-found: error
+          name: duckdb-${{ inputs.duckdb_version }}-binary-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/duckdb
+
+      - uses: actions/upload-artifact@v4
+        name: Upload build metadata (macOS)
+        with:
+          if-no-files-found: error
+          name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/metadata.json
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -803,6 +914,13 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
+      - name: Enable Windows long paths
+        shell: powershell
+        run: |
+          New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+          git config --global core.longpaths true
+
       - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
@@ -818,6 +936,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - uses: actions/setup-python@v5
         with:
@@ -881,6 +1000,27 @@ jobs:
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
+      - name: Fetch tags in DuckDB submodule
+        if: ${{inputs.override_duckdb_repository == ''}}
+        shell: bash
+        run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
+          cd duckdb
+          git fetch --unshallow 2>/dev/null || true
+          git fetch origin --tags --force
+          GIT_DESC=$(git describe --tags --always --long)
+          echo "DuckDB version: $GIT_DESC"
+          if [[ "$GIT_DESC" =~ ^[a-f0-9]+$ ]]; then
+            echo "ERROR: git describe returned only commit hash, tags not fetched properly!"
+            git remote -v
+            git tag -l | head -10
+            exit 1
+          fi
+          cd ..
+
       - name: Fetch override repository
         if: ${{inputs.override_duckdb_repository != ''}}
         env:
@@ -930,12 +1070,22 @@ jobs:
           echo -e "\n# Injected Extension Config\n$EXTENSION_CONFIG" >> ./extension_config.cmake
           cat ./extension_config.cmake
 
+      - name: Create short workspace junction (Windows long path workaround)
+        shell: powershell
+        run: |
+          $target = $env:GITHUB_WORKSPACE
+          Write-Host "Creating junction C:\p -> $target"
+          New-Item -ItemType Junction -Path "C:\p" -Target $target
+          Write-Host "Junction exists: $(Test-Path 'C:\p')"
+          Write-Host "Makefile reachable: $(Test-Path 'C:\p\Makefile')"
+
       - name: Run configure
         shell: bash
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
           DUCKDB_PLATFORM_RTOOLS: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 1 || 0 }}
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           make configure_ci
 
@@ -961,8 +1111,14 @@ jobs:
           ENABLE_EXTENSION_AUTOLOADING: 1
           DUCKDB_PLATFORM_RTOOLS: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 1 || 0 }}
           EXT_FLAGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
+          VCPKG_TOOLCHAIN_PATH: C:/p/vcpkg/scripts/buildsystems/vcpkg.cmake
+          VCPKG_OVERLAY_TRIPLETS: C:/p/extension-ci-tools/toolchains
+          VCPKG_OVERLAY_PORTS: C:/p/extension-ci-tools/vcpkg_ports
         shell: cmd
         run: |
+          cd /d C:\p
+          echo Working directory: %CD%
           if "%DUCKDB_PLATFORM_RTOOLS%" == "0" (
             if "%DUCKDB_PLATFORM%" == "windows_amd64" (
               call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
@@ -986,6 +1142,16 @@ jobs:
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
 
+      - name: Create build metadata
+        shell: bash
+        run: |
+          make create_build_metadata \
+            EXTENSION_NAME="${{ inputs.extension_name }}" \
+            BUILD_TYPE="${{ inputs.build_type }}" \
+            DUCKDB_PLATFORM="${{ matrix.duckdb_arch }}" \
+            CI_TOOLS_VERSION="${{ inputs.ci_tools_version }}" \
+            WORKFLOW_RUN_ID="${{ github.run_id }}"
+
       - uses: actions/upload-artifact@v4
         if: ${{ !inputs.upload_all_extensions }}
         with:
@@ -1001,6 +1167,23 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
+
+      - uses: actions/upload-artifact@v4
+        name: Upload DuckDB binary (Windows)
+        if: ${{ inputs.build_duckdb_shell }}
+        with:
+          if-no-files-found: error
+          name: duckdb-${{ inputs.duckdb_version }}-binary-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/duckdb.exe
+
+      - uses: actions/upload-artifact@v4
+        name: Upload build metadata (Windows)
+        with:
+          if-no-files-found: error
+          name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/metadata.json
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -1066,6 +1249,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.DUCKDB_REPOSITORY_TOKEN || github.token }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -1073,6 +1257,27 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
+
+      - name: Fetch tags in DuckDB submodule
+        if: ${{inputs.override_duckdb_repository == ''}}
+        shell: bash
+        run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
+          cd duckdb
+          git fetch --unshallow 2>/dev/null || true
+          git fetch origin --tags --force
+          GIT_DESC=$(git describe --tags --always --long)
+          echo "DuckDB version: $GIT_DESC"
+          if [[ "$GIT_DESC" =~ ^[a-f0-9]+$ ]]; then
+            echo "ERROR: git describe returned only commit hash, tags not fetched properly!"
+            git remote -v
+            git tag -l | head -10
+            exit 1
+          fi
+          cd ..
 
       - name: Fetch override repository
         if: ${{inputs.override_duckdb_repository != ''}}
@@ -1161,6 +1366,7 @@ jobs:
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           make configure_ci
 
@@ -1177,8 +1383,21 @@ jobs:
           fi
 
       - name: Build Wasm module
+        env:
+          OVERRIDE_GIT_DESCRIBE: ${{ inputs.override_git_describe }}
         run: |
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} ENABLE_EXTENSION_AUTOINSTALL=1 ENABLE_EXTENSION_AUTOLOADING=1 make ${{ matrix.duckdb_arch }}
+
+      - name: Create build metadata
+        shell: bash
+        run: |
+          # For WASM, build_type is the platform name (wasm_mvp, wasm_eh, wasm_threads)
+          make create_build_metadata \
+            EXTENSION_NAME="${{ inputs.extension_name }}" \
+            BUILD_TYPE="${{ matrix.duckdb_arch }}" \
+            DUCKDB_PLATFORM="${{ matrix.duckdb_arch }}" \
+            CI_TOOLS_VERSION="${{ inputs.ci_tools_version }}" \
+            WORKFLOW_RUN_ID="${{ github.run_id }}"
 
       - uses: actions/upload-artifact@v4
         if: ${{ !inputs.upload_all_extensions }}
@@ -1195,6 +1414,14 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ matrix.duckdb_arch }}/repository/**/*.duckdb_extension.wasm
+
+      - uses: actions/upload-artifact@v4
+        name: Upload build metadata (WASM)
+        with:
+          if-no-files-found: error
+          name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ matrix.duckdb_arch }}/metadata.json
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
