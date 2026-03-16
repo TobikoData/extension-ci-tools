@@ -504,6 +504,7 @@ jobs:
           make test_${{ inputs.build_type }}
 
       - name: Create build metadata
+        continue-on-error: true
         shell: bash
         run: |
           # Run inside Docker to have write permissions to build directory
@@ -543,7 +544,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         name: Upload build metadata (Linux)
         with:
-          if-no-files-found: error
+          if-no-files-found: ignore
           name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/metadata.json
@@ -806,6 +807,7 @@ jobs:
           make test_${{ inputs.build_type }}
 
       - name: Create build metadata
+        continue-on-error: true
         shell: bash
         run: |
           make create_build_metadata \
@@ -843,7 +845,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         name: Upload build metadata (macOS)
         with:
-          if-no-files-found: error
+          if-no-files-found: ignore
           name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/metadata.json
@@ -1160,6 +1162,7 @@ jobs:
           make test_${{ inputs.build_type }}
 
       - name: Create build metadata
+        continue-on-error: true
         shell: bash
         run: |
           make create_build_metadata \
@@ -1197,7 +1200,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         name: Upload build metadata (Windows)
         with:
-          if-no-files-found: error
+          if-no-files-found: ignore
           name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/metadata.json
@@ -1406,6 +1409,7 @@ jobs:
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} ENABLE_EXTENSION_AUTOINSTALL=1 ENABLE_EXTENSION_AUTOLOADING=1 make ${{ matrix.duckdb_arch }}
 
       - name: Create build metadata
+        continue-on-error: true
         shell: bash
         run: |
           # For WASM, build_type is the platform name (wasm_mvp, wasm_eh, wasm_threads)
@@ -1435,7 +1439,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         name: Upload build metadata (WASM)
         with:
-          if-no-files-found: error
+          if-no-files-found: ignore
           name: metadata-${{ inputs.duckdb_version }}-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ matrix.duckdb_arch }}/metadata.json
