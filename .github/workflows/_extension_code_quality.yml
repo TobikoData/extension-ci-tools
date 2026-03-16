@@ -87,6 +87,10 @@ jobs:
         if: ${{inputs.override_repository == ''}}
         shell: bash
         run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
           cd duckdb
           git fetch --unshallow 2>/dev/null || true
           git fetch origin --tags --force
@@ -157,6 +161,10 @@ jobs:
         if: ${{inputs.override_repository == ''}}
         shell: bash
         run: |
+          if [ ! -d "duckdb" ]; then
+            echo "No duckdb submodule directory found, skipping tag fetch"
+            exit 0
+          fi
           cd duckdb
           git fetch --unshallow 2>/dev/null || true
           git fetch origin --tags --force
